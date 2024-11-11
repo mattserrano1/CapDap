@@ -1,0 +1,71 @@
+Personal Metadata File for Kelp Forest Biomass Survey
+Author: Matt Serrano
+10-Oct-2024
+This file contains a description of the dataset and a log of all changes made in order to prepare it for analysis in RStudio. 
+
+Citation:
+Reed, D., Miller, R. (2024) Seasonal Kelp Forest Community Dynamics: biomass of kelp forest species, ongoing since 2008. DataONE. Accessed, 10/24/2024. https://search.dataone.org/view/https%3A%2F%2Fpasta.lternet.edu%2Fpackage%2Fmetadata%2Feml%2Fknb-lter-sbc%2F182%2F1 
+
+Data Description:
+
+   The project to create this dataset was originated by Daniel C Reed and Robert J Miller and the Investigator is Reed Miller. The project is part of the Santa Barbara Coastal Long Term Ecological Research Project. The dataset are values of biomass density for over 200 species within the kelp forests at multiple sample sites in seasonal kelp forests near Santa Barbara, California. The sites were chosen to represent a wide range of physical and biological characteristics. It was created as part of an effort to track long-term patterns in species abundance and diversity in seasonal kelp forests.
+
+ Column Key:
+
+"YEAR"
+- Year the sample was collected
+"MONTH"
+- Month the sample was collected
+"DATE"
+- The date the sample was collected
+"SITE"
+- The physical location of field site, Arroyo Quemado, Carpinteria, Mohawk, Naples, were the four sampling sites
+"TRANSECT"
+- 40m  transects defined by six permanent markers at 0, 8, 16, 24, 32 and 40m. 
+"VIS"
+- Approximate horizontal visibility at the beginning of the transect
+"SP_CODE"
+- Two to six letter species code assigned to a species, species subset or taxonomic group. 
+"PERCENT_COVER"
+- Percent cover estimate from the UPC survey
+"DENSITY"
+- Density estimated from the count survey
+"WM_GM2"
+- Wet mass density derived form estimates of density or percent cover and lab estimates of taxa dry mass.
+"DRY_GM2"
+- Dry mass density derived from estimates of density or percent cover and lab estimates of taxa dry mass. 
+"SF_DM"
+Shell-free dry mass. These estimates were converted to shell-free dry mass using specific ratios of wet mass to shell-free dry mass described in Reed et al. 
+"AF_DM"
+- Areal ash-free dry mass. These estimates were converted to ash=free dry mass using taxon specific ratios of wet mass to ash-free dry mass described in Reed et al. 
+"SCIENTIFIC_NAME"
+- Taxonomic scientific name
+"COMMON_NAME"
+- Common name of the organism
+"TAXON_KINGDOM"
+- Taxonomic kingdom of the organism
+"TAXON_CLASS"
+- Taxonomic class of the organism
+"TAXON_PHYLUM"
+- Taxonomic phylum of the organism
+"TAXON_ORDER"
+- Taxonomic order of the organism
+"TAXON_FAMILY"
+- Taxonomic family of the organism
+"TAXON_GENUS"
+- Taxonomic genus of the organism
+"GROUP"
+- Functional grouping term for observed species
+"MOBILITY"
+- Sessile or mobile depending on the animals locomotive means. 
+"GROWTH_MORPH"
+- Whether or not the organism in question is an aggregate or solitary individual.
+
+Data Cleaning Log:
+1. N/A values were left as -9999 to be changed to NA in R to preserve the original dataset. 
+2. Changed format of the "DATE" data to be in day-month format so it would read into R better. 
+3. All column names were left as is since they were consistently formatted and used underscores to separate words. 
+4. Did not do any data validation in Excel to protect workbook but will be using functions in R to validate that all data is entered correctly. 
+Data Cleaning in R:
+1. Changed -99999 to NA 
+
