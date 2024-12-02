@@ -5,6 +5,7 @@ editor: visual
 ---
 
 # set up
+
 ```{r}
 rm(list=ls())
 library(tidyverse)
@@ -15,14 +16,17 @@ library(vegan)
 ```
 
 # Reading in data
+
 ```{r}
 KelpForest <- read.csv(here("Outputs", "KelpForestFixed.csv"))
 ```
 
-Data has already been checked for proper entry in the data exploration assignment and is fixed in the KelpForestFixed.csv file that I loaded. 
+Data has already been checked for proper entry in the data exploration assignment and is fixed in the KelpForestFixed.csv file that I loaded.
 
-# Moving data into long format 
+# Moving data into long format
+
 using pivot_wider
+
 ```{r}
 Kelp_Drymass_wide <- KelpForest |> 
   pivot_wider(
@@ -31,33 +35,25 @@ Kelp_Drymass_wide <- KelpForest |>
   
 ```
 
+Making the smaller kelp data frame
 
+```{r}
+small_kelp <- KelpForest %>% dplyr::select(YEAR:TRANSECT, DENSITY, DRY_GM2, SCIENTIFIC_NAME)
+```
 
+Grouping dry mass by species and year
 
+```{r}
+kelp_summary <- small_kelp %>% group_by(YEAR, SITE, SCIENTIFIC_NAME) %>% summarise(
+  total_dry_mass = sum(DRY_GM2)
+) 
+```
 
+putting the data in long format
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```{r}
+Kelp_Summary_Wide <- kelp_summary |> 
+  pivot_wider(
+    names_from = SCIENTIFIC_NAME, values_from = total_dry_mass
+  )
+```
