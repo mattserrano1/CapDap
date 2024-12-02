@@ -1,0 +1,42 @@
+---
+title: "Kelp forest stuff"
+format: html
+editor: visual
+---
+
+## set up
+
+```{r}
+rm(list=ls())
+library(tidyverse)
+library(here)
+library(multcomp)
+library(ggfortify)
+library(vegan)
+```
+
+Reading in data
+
+```{r}
+KelpForest <- read.csv(here("Outputs", "KelpForestFixed.csv"))
+```
+
+I think a problem you may be running into for vegan is that you need to do a group by and summarize per site, date.
+
+Let's make a smaller data frame to work with
+
+```{r}
+small_kelp <- KelpForest %>% dplyr::select(YEAR:TRANSECT, DENSITY, DRY_GM2, SCIENTIFIC_NAME)
+```
+
+Now let's do a group_by and summarise to get total dry mass of each species at each site/transect/date
+
+```{r}
+kelp_summary <- small_kelp %>% group_by(YEAR, SITE, SCIENTIFIC_NAME) %>% summarise(
+  total_dry_mass = sum(DRY_GM2)
+) 
+```
+
+You may decide that you want to group some of the species together into taxonomic groups (e.g. Genera or Families) to make this more straightforward as there are 214 different values in the scientific name column.
+
+See if you can go from long to wide now with small_kelp.

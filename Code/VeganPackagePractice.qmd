@@ -4,4 +4,16 @@ format: html
 editor: visual
 ---
 
+set up
+```{r}
+rm(list=ls())
+library(tidyverse)
+library(here)
+library(ggfortify)
+library(vegan)
+library(multcomp)
+```
 
+loading data
+
+Practicing pivot_wider

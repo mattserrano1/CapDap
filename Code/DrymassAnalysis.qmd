@@ -4,7 +4,7 @@ format: html
 editor: visual
 ---
 
-set up
+# set up
 ```{r}
 rm(list=ls())
 library(tidyverse)
@@ -14,19 +14,22 @@ library(ggfortify)
 library(vegan)
 ```
 
-Reading in data
+# Reading in data
 ```{r}
 KelpForest <- read.csv(here("Outputs", "KelpForestFixed.csv"))
 ```
 
-Data has already been checked for proper entry in the data exploration assignment and fixed in the KelpForestFixed.csv file that I loaded. 
+Data has already been checked for proper entry in the data exploration assignment and is fixed in the KelpForestFixed.csv file that I loaded. 
 
-
-
-
-
-
-
+# Moving data into long format 
+using pivot_wider
+```{r}
+Kelp_Drymass_wide <- KelpForest |> 
+  pivot_wider(
+    names_from = SCIENTIFIC_NAME, values_from = DRY_GM2) # Using dry mass since I feel it is more representative of actual amount of species than wet mass.
+# using scientific name since there are NA values for some of the common names 
+  
+```
 
 
 
