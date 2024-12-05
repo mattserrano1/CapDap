@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ---
 title: "DataExploration"
 format: html
@@ -216,3 +217,200 @@ write.csv(SpeciesRichness,here("Outputs","SpechiesRichness.csv"), row.names=FALS
 
 
 
+=======
+---
+title: "DataExploration"
+format: html
+editor: visual
+---
+
+Setting Up
+
+```{r}
+rm(list=ls())
+library(tidyverse)
+library(here)
+library(ggfortify)
+library(multcomp)
+library(vegan)
+```
+
+Importing data
+
+```{r}
+KelpForest <- read.csv(here("Data", "KelpForestBiomassSurvey.csv"))
+glimpse(KelpForest)
+```
+
+Date needs to be changed to a date data type.
+
+```{r}
+KelpForest$DATE <- ymd(KelpForest$DATE)
+```
+
+Site needs to be converted to factor data since it will be used as a differentiation variable.
+
+```{r}
+KelpForest$SITE <- as.factor(KelpForest$SITE)
+levels(KelpForest$SITE)#looks good
+```
+
+SCIENTIFIC_NAME needs to be converted to factor data since I am going to use it to identify species richness
+
+```{r}
+KelpForest$SCIENTIFIC_NAME <- as.factor(KelpForest$SCIENTIFIC_NAME)
+levels(KelpForest$SCIENTIFIC_NAME)
+```
+
+I did not level the other categorizing columns for the species since I won't be using them as of now to do any data analysis.
+
+NA values need to be changed to na instead of -99999999
+
+Using PERCENT_COVER \< -1 also gets rid of any
+
+```{r}
+KelpForest <- KelpForest |> mutate(PERCENT_COVER = 
+                                     ifelse(PERCENT_COVER < -1, NA, PERCENT_COVER))
+
+KelpForest <- KelpForest |> mutate(DENSITY = 
+                                     ifelse(DENSITY < -1, NA, DENSITY))
+
+KelpForest <- KelpForest |> mutate(WM_GM2 = 
+                                     ifelse(WM_GM2 < -1, NA, WM_GM2))
+
+KelpForest <- KelpForest |> mutate(DRY_GM2 = 
+                                     ifelse(DRY_GM2 < -1, NA, DRY_GM2))
+
+KelpForest <- KelpForest |> mutate(SFDM = 
+                                     ifelse(SFDM < -1, NA, SFDM))
+
+KelpForest <- KelpForest |> mutate(AFDM = 
+                                     ifelse(AFDM < -1, NA, AFDM))
+
+KelpForest <- KelpForest |> mutate(AFDM = 
+                                     ifelse(AFDM < -1, NA, AFDM))
+
+KelpForest <- KelpForest |> mutate(COMMON_NAME = 
+                                     ifelse(COMMON_NAME == "-99999", NA, COMMON_NAME))
+
+KelpForest <- KelpForest |> mutate(TAXON_KINGDOM = 
+                                     ifelse(TAXON_KINGDOM == "-99999", NA, TAXON_KINGDOM))
+
+KelpForest <- KelpForest |> mutate(TAXON_PHYLUM = 
+                                     ifelse(TAXON_PHYLUM == "-99999", NA, TAXON_PHYLUM))
+
+KelpForest <- KelpForest |> mutate(TAXON_CLASS = 
+                                     ifelse(TAXON_CLASS == "-99999", NA, TAXON_CLASS))
+
+KelpForest <- KelpForest |> mutate(TAXON_ORDER = 
+                                     ifelse(TAXON_ORDER == "-99999", NA, TAXON_ORDER))
+
+KelpForest <- KelpForest |> mutate(TAXON_FAMILY = 
+                                     ifelse(TAXON_FAMILY == "-99999", NA, TAXON_FAMILY))
+
+KelpForest <- KelpForest |> mutate(TAXON_GENUS = 
+                                     ifelse(TAXON_GENUS == "-99999", NA, TAXON_GENUS))
+```
+
+I found the ifelse function while looking online for how to change just certain values since it wasn't working when I was trying to filter values for the double point data type columns. I just kept using it with my character data columns to keep my code consistent even though I think using filter piped into mutate would work there.
+
+Doing summary stats and checking for outliers.
+
+I am anticipating that actually removing any outlines won't be feasible since there will be wide ranges between species presence I expect.
+
+Making a scatterplot of PERCENT_COVER
+
+```{r}
+ggplot(KelpForest, aes(PERCENT_COVER, DATE))+
+  geom_point()
+```
+
+using filter to look at the outliers and see if they should be removed or not
+
+```{r}
+KelpForest |> filter(PERCENT_COVER > 75)
+```
+
+I did some basic research into these two species and their percent cover seems pretty expected and nothing out of the ordinary so I will be leaving them in the data.
+
+DENSITY Making a scatterplot
+
+```{r}
+ggplot(KelpForest, aes(DENSITY, DATE))+
+  geom_point()
+```
+
+using filter to look at the higher density points.
+
+```{r}
+KelpForest |> filter(DENSITY > 90)
+```
+
+My online research didn't give any results that would make me think either of these organisms couldn't occur in such densities so I am going to leave them in the data.
+
+DRY_GM2 Making a scattorplot
+
+```{r}
+ggplot(KelpForest, aes(DRY_GM2, DATE))+
+  geom_point()
+```
+
+using filter to look at the one outlier
+
+```{r}
+KelpForest |> filter(DRY_GM2 > 30000)
+```
+
+They can grow to about 1.5-2 pounds each. Not really sure enough about their biology to take them out so I will leave them in for now and consult with you in class.
+
+Make some box plots and summary stats for the tests I am going to be running.
+
+```{r}
+ggplot(KelpForest, aes(SITE, DRY_GM2))+
+  geom_boxplot()+
+  facet_wrap(~ YEAR)
+```
+
+The plots really don't show much since there is such a larger variability in the data so it is hard to tell. Going to just use summary statistics.
+
+```{r}
+KelpForest |> group_by(YEAR) |>
+  summarise(mean_drymass = mean(DRY_GM2, na.rm = TRUE))
+```
+
+There does not seem to be any specific trend over time for mean dry mass. However hard to tell since the values vary greatly between years. If I had to make a guess I would say that mean dry mass has increased over time. This could be changed to by month to look at seasonal variation
+
+Creating the species richness variable to use for later analysis. - not sure now to make this tidy data in my original csv. file so making it a new one.
+
+```{r}
+SpeciesRichness <- KelpForest |> 
+  group_by(YEAR) |>
+   filter(DRY_GM2 > 0)
+                    
+```
+
+This code made a new data table that only contains the rows of data that indicate a species was present at the time. Thus can use for species richness analysis
+
+Doing some summary statistics on it
+
+```{r}
+ggplot(SpeciesRichness, aes(SCIENTIFIC_NAME, YEAR))+
+  geom_point()
+```
+
+Summary statistics because this graph is impossible to look at.
+
+```{r}
+SpeciesRichness |> group_by(YEAR) |>
+  
+```
+
+Don't have nay more summarys tats for spechies richness going to explore more later using the vegan package.
+
+Saving my modified .csv file into the outputs folder for future use.
+
+```{r}
+write.csv(KelpForest,here("Outputs","KelpForestFixed.csv"), row.names=FALSE)
+write.csv(SpeciesRichness,here("Outputs","SpechiesRichness.csv"), row.names=FALSE)
+```
+>>>>>>> 899d474789c7d4615bb3870854ee3b66ad3d587d
