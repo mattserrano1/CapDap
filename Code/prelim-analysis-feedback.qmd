@@ -1,0 +1,53 @@
+---
+title: "prelim-analysis-feedback.qmd"
+format: html
+editor: visual
+---
+
+## Preliminary Data Analysis Feedback
+### General
+- Your assignment was late, though I appreciate that you tried to work on it over break.
+
+- This is really tricky for me to grade, as I was expecting you to submit the full thing, showing our workflow (or at least the full workflow for one part of your analysis) by friday. Instead, we are passing it back and forth, which isn't a bad thing, but it isn't what I"m doing with other students, so it makes it difficult to compare.
+
+- Here's what I'm going to do. Given that your assignment was late, but that I can see you are putting in a lot of work and have some different and wacky analyses, I'm going to give you the equivalent of a "B+" on this preliminary assignment. That amounts to a score of 22/25 on this assignment.
+
+- Below I give you code that should help with the time series part. We can meet or pass it back and forth again if you have questions.
+
+
+### DrymassAnalysis.qmd
+- Line 79 - Nice work using one of the `grep` functions to grab by names!
+- Line 98 - I see a couple of problems: 
+ 1.  You haven't subset your data to your individual transects, so when I look at the `kelp`, I see multiple entries for different species for the same date. For a time series to work, you need one row per date, not multiple rows.
+ 2.  When I run your code, your time series appears to run from 2010 to 2174, which is problematic. I think it has to do with the fact that you have 1970 rows of data for fewer than 20 years. 
+
+I think what you need to do is:
+- use group_by and summarise to calculate, per MONTH and across transects, the total biomass across all kelp species. Before doing so, let's add a column called Y-MO to the data
+
+
+
+```{r}
+kelp <- kelp |> unite("YEAR_MO", c("YEAR", "MONTH"), sep = "-", remove = F) #creates new column of just year and month
+per_month <- kelp |> group_by(YEAR_MO) |> summarise(
+  DRY_GM2 = sum(DRY_GM2, na.rm = T)#gets kelp biomass per year/month for data
+)
+per_month$YEAR_MO <- ym(per_month$YEAR_MO) #makes YEAR_MO a date
+per_month <- arrange(per_month, YEAR_MO) #arranges in date order
+
+
+```
+
+- Determine for which months in which years you are missing data and add those rows as NA. To do this, we'll use the `complete` function from the `tidyr` package.
+
+```{r}
+kelp_complete <- per_month |> tidyr::complete(YEAR_MO=seq(min(YEAR_MO), max (YEAR_MO), by = "1 month"))
+```
+Now I have a single row per date with no dates missing and I can create a time series object from that.
+
+```{r}
+kelp_drymass <- ts(kelp_complete$DRY_GM2, frequency = 12, start = c(2008, 1))
+```
+
+This should get you where you need to go. You will of course need to do the same thing with urchin biomass.
+
+
