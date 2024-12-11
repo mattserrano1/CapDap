@@ -5,9 +5,10 @@ editor: visual
 ---
 
 ## Data exploration feedback
-1. I'm impressed to see you figured out a `ifelse()` way to fix your -99999 values to `NA`.
 
-2. When you make your faceted boxplots (line 148) they are all on the same scale and they must all account for the one really large value for DRY_GM2. Thus, you can't really tell anything when looking at these plots. I think you should temporarily remove the really high value (just by adding a filter in your data call within the ggplot) so that you can see the pattern in the boxplots in a meaningful way, like this:
+1.  I'm impressed to see you figured out a `ifelse()` way to fix your -99999 values to `NA`.
+
+2.  When you make your faceted boxplots (line 148) they are all on the same scale and they must all account for the one really large value for DRY_GM2. Thus, you can't really tell anything when looking at these plots. I think you should temporarily remove the really high value (just by adding a filter in your data call within the ggplot) so that you can see the pattern in the boxplots in a meaningful way, like this:
 
 ```{r}
 ggplot(filter(KelpForest, DRY_GM2 < 20000), aes(SITE, DRY_GM2))+
@@ -15,7 +16,6 @@ ggplot(filter(KelpForest, DRY_GM2 < 20000), aes(SITE, DRY_GM2))+
   facet_wrap(~ YEAR)
 ```
 
-3. I'd like to also see some histograms plotted for your data for a visual check of what the data look like (and not just looking for outliers). Your goal is to get a feel for your data.
+3.  I'd like to also see some histograms plotted for your data for a visual check of what the data look like (and not just looking for outliers). Your goal is to get a feel for your data.
 
-4. I will be making a video for you and others doing vegan that helps to explain how to do it and how it works.
-
+4.  I will be making a video for you and others doing vegan that helps to explain how to do it and how it works.

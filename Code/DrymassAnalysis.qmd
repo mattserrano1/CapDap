@@ -4,7 +4,9 @@ format: html
 editor: visual
 ---
 
-# set up
+
+set up
+
 
 ```{r}
 rm(list=ls())
@@ -19,11 +21,14 @@ library(zoo) # for moving averages
 library(here)
 ```
 
-# Reading in data
+
+Reading in data
+
 
 ```{r}
 KelpForest <- read.csv(here("Outputs", "KelpForestFixed.csv"))
 ```
+
 
 Data has already been checked for proper entry in the data exploration assignment and is fixed in the KelpForestFixed.csv file that I loaded.
 
@@ -168,3 +173,6 @@ At first glance it is hard to tell if there is any correlation but I think I wou
 
 
 
+=======
+Data has already been checked for proper entry in the data exploration assignment and fixed in the KelpForestFixed.csv file that I loaded.
+>>>>>>> 0b4f9e1 (add elb comments)
