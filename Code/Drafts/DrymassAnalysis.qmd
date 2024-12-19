@@ -1,0 +1,208 @@
+---
+title: "TotalBiomassAnalysis"
+format: html
+editor: visual
+---
+
+
+# set up
+
+
+```{r}
+rm(list=ls())
+library(tidyverse)
+library(here)
+library(multcomp)
+library(ggfortify)
+library(vegan)
+library(forecast) #for moving averages
+library(gridExtra) #to arrange plots
+library(zoo) # for moving averages
+library(here)
+```
+
+
+Reading in data
+
+
+```{r}
+KelpForest <- read.csv(here("Outputs", "KelpForestFixed.csv"))
+```
+
+
+Data has already been checked for proper entry in the data exploration assignment and is fixed in the KelpForestFixed.csv file that I loaded.
+
+# Moving data into long format
+
+using pivot_wider
+
+```{r}
+Kelp_Drymass_wide <- KelpForest |> 
+  pivot_wider(
+    names_from = SCIENTIFIC_NAME, values_from = DRY_GM2) # Using dry mass since I feel it is more representative of actual amount of species than wet mass.
+# using scientific name since there are NA values for some of the common names 
+  
+```
+
+
+I want to do an analysis comparing the total drymass of urchins vs kelp in the forest to see if there are any patterns over time. To do this I am using time series analysis since how their populations compare at specific times is important so a linear regression would not be applicable. 
+
+MY NULL hypothesis is that there will not be a correlation between the kelp and urchin dry mass. 
+
+Since there are multiple species and the names are different i found this grepl() function that will select all rows that contain the words urchin and then kelp. 
+
+# Making the Urchin dataframe for time seris analysis. 
+
+```{r}
+urchins <- KelpForest[grepl(
+  "Urchin", KelpForest$COMMON_NAME, 
+  ignore.case = TRUE),]
+```
+
+```{r}
+urchins <- urchins |> unite("YEAR_MO", c("YEAR", "MONTH"), sep = "-", remove = F) 
+per_month_urchins <- urchins |> group_by(YEAR_MO) |> summarise(
+  DRY_GM2 = sum(DRY_GM2, na.rm = T))
+#putting YEAR_MO into date format and arranging chronologically
+per_month_urchins$YEAR_MO <- ym(per_month_urchins$YEAR_MO) 
+per_month_urchins <- arrange(per_month_urchins, YEAR_MO) 
+```
+
+Making the rows that have no data for a date NA so the time series has an entry for each month and making one column per date. 
+
+```{r}
+urchins_complete <- per_month_urchins |> tidyr::complete(YEAR_MO=seq(min(YEAR_MO), max (YEAR_MO), by = "1 month"))
+```
+
+
+# Making the kelp dataframe for time series analysis
+
+Also am filtering for the kingdom of Chromista since there are non kepl species included that have kelp in their names.  
+```{r}
+kelp <- KelpForest[grepl(
+  "Kelp", KelpForest$COMMON_NAME, 
+  ignore.case = TRUE),]
+kelp <- kelp |> filter(TAXON_KINGDOM == "Chromista")
+
+```
+
+Grouping data into year, month format so there are fewer points to make a easier to understand time series analysis. 
+
+```{r}
+kelp <- kelp |> unite("YEAR_MO", c("YEAR", "MONTH"), sep = "-", remove = F) #creates new column of just year and month
+per_month_kelp <- kelp |> group_by(YEAR_MO) |> summarise(
+  DRY_GM2 = sum(DRY_GM2, na.rm = T)#gets kelp biomass per year/month for data
+)
+per_month_kelp$YEAR_MO <- ym(per_month_kelp$YEAR_MO) #makes YEAR_MO a date
+per_month_kelp <- arrange(per_month_kelp, YEAR_MO) #arranges in date order
+```
+
+Making the rows that have no data for a date NA so the time series has an entry for each month and making one column per date. 
+
+```{r}
+kelp_complete <- per_month_kelp |> tidyr::complete(YEAR_MO=seq(min(YEAR_MO), max (YEAR_MO), by = "1 month"))
+```
+
+
+# Creating Timeseris Variables
+
+For kelp
+```{r}
+kelp_drymass <- ts(kelp_complete$DRY_GM2, frequency = 12, start = c(2008, 1))
+```
+
+For urchins
+```{r}
+urchins_drymass <- ts(urchins_complete$DRY_GM2, frequency = 12, start = c(2008, 1))
+```
+
+
+# Calculating a simple moving average
+chose a rolling period of 3 months as it divided
+
+```{r}
+kelp_drymass <- rollmean(kelp_drymass, k=1, fill = NA)
+```
+
+```{r}
+urchins_drymass <- rollmean(urchins_drymass, k=1, fill = NA)
+```
+
+# Putting the time series objects into data frames to be graphed. 
+
+```{r}
+kelp_complete$drymass <- as.numeric(kelp_drymass)
+```
+
+```{r}
+urchins_complete$drymass <- as.numeric(urchins_drymass)
+```
+
+# Plotting the data
+
+```{r}
+ggplot(kelp_complete, aes(x =YEAR_MO))+
+  geom_line(aes(y = DRY_GM2), color = "blue", linewidth = 1) + #original time series
+  geom_line(aes(y = drymass), color = "red", linewidth = 1.2) + #moving average
+  labs(title = "KU: k = 1 month",x = "Year", y = "Drymass")+
+  scale_x_date(limits = c(as.Date("2008-01-01"), as.Date("2013-12-01")), date_labels = "%Y")+ # I used this function to change the scale to make the graph easier to read since there were no complete values for drymass beyond 2012. 
+  theme_bw()
+```
+
+```{r}
+ggplot(urchins_complete, aes(x =YEAR_MO))+
+  geom_line(aes(y = DRY_GM2), color = "blue", linewidth = 1) + #original time series
+  geom_line(aes(y = drymass), color = "red", linewidth = 1.2) + #moving average
+  labs(title = "KU: k = 1 month",x = "Year", y = "Drymass")+
+  scale_x_date(limits = c(as.Date("2008-01-01"), as.Date("2013-12-01")), date_labels = "%Y")+
+  theme_bw()
+```
+
+Since the goal of doing this time series analysis for urchins and kelp was to compare the two time series I'm going to overlay them on one graph.  In order to better see the trends only the rolling average is graphed and not the original time series. 
+
+```{r}
+ggplot() + # using a plus after the ggplot() function allows for multiple geom functions with different data to be put on one graph. 
+  
+  geom_line(data = urchins_complete, aes(x = YEAR_MO, y = drymass), color = "purple", linewidth = 1.2) +
+  
+  geom_line(data = kelp_complete, aes(x = YEAR_MO, y = drymass), color = "green", linewidth = 1.2) +
+  # Since the labeling and scale functions are applied the same to both they can go at the end to be applied to both. 
+  labs(title = "KU: k = 1 month", x = "Year", y = "Drymass") +
+  scale_x_date(limits = c(as.Date("2008-01-01"), as.Date("2013-12-01")), date_labels = "%Y") +
+  theme_bw()
+```
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=======
+Data has already been checked for proper entry in the data exploration assignment and fixed in the KelpForestFixed.csv file that I loaded.
+>>>>>>> 0b4f9e1 (add elb comments)

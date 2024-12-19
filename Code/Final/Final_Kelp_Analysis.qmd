@@ -1,0 +1,358 @@
+---
+title: "Final_Kelp_Analysis"
+format: html
+editor: visual
+---
+
+# Final Analysis of Kelp Forest Data
+
+## Introduction
+
+This is an analysis of a data set that contains kelp forest species data. The data set contains survey records at five sites located off the coast of California near Santa Barbara, from 2008-2024. The data set is part of the larger Santa Barbara Coastal Long Term Ecological Research Project. This data is being collected to provide a source of long term data to enable an effort to track long-term patterns in species abundance and diversity in seasonal kelp forests. At the time of download in Oct. 2024 there were 84,317 data points within the data set.
+
+To prepare this data set for analysis in RStudio I had to make some changes to its structure from the original file. First I converted the date values to dates. This was necessary since I used a time series analysis. I also changed values like as -99999 to "NA" so that they would not skew the analysis since they do not represent a value that was actually collected. Additionally, I checked DRY_GM2, the column representing the dry mass of surveyed species, for outliers. The dry mass of the Black Croaker, a fish, appeared to be an outlier. However upon looking into their home range, abundance and size I decided that the reported dry mass was plausible and as a result left in it the data set (California Department of Fish and Wildlife, 2020).
+
+Two different analyses were performed on the data; a time series analysis and an ordination analysis. The time series analysis compared how kelp and urchin populations changed over time. The ordination analysis compared the 5 different sites that were surveyed to see the differences in ecological composition.
+
+## Kelp & Sea Urchin Time Series Analysis
+
+### Hypothesizes 
+
+Null Hypothesis:
+
+There will be no visible correlation between the dry mass of kelp and sea urchins over time.
+
+Hypothesis:
+
+There will be a negative relationship between the dry mass of kelp and sea urchins over time (Carr et. al, 2024).
+
+### Variables
+
+The predictor variable will be time since this is a time series analysis. These will be in date form, more specifically year, month. There will be two response variables, the dry mass of all kelp species and the dry mass of all sea urchin species. As both of these variables are measured by dry mass they are both ratio data.
+
+### Analysis
+
+#### Loading Packages
+
+```{r}
+rm(list=ls())
+library(tidyverse)
+library(here)
+library(multcomp)
+library(ggfortify)
+library(vegan)
+library(forecast) #for moving averages
+library(gridExtra) #to arrange plots
+library(zoo) # for moving averages
+library(here)
+```
+
+#### Importing Data
+
+Cleaned data set ready for analysis.
+
+```{r}
+
+KelpForest <- read.csv(here("Outputs", "KelpForestFixed.csv"))
+```
+
+#### Preparing Urchin Data for Analysis
+
+Getting all of the sea urchin species from the original KelpForest data set.
+
+```{r}
+urchins <- KelpForest[grepl(
+  "Urchin", KelpForest$COMMON_NAME, 
+  ignore.case = TRUE),]
+```
+
+Modifying the data set to be grouped by month with total urchin biomass for each month.
+
+```{r}
+urchins <- urchins |> unite("YEAR_MO", c("YEAR", "MONTH"), sep = "-", remove = F) 
+per_month_urchins <- urchins |> group_by(YEAR_MO) |> summarise(
+  DRY_GM2 = sum(DRY_GM2, na.rm = T))
+#putting YEAR_MO into date format and arranging chronologically
+per_month_urchins$YEAR_MO <- ym(per_month_urchins$YEAR_MO) 
+per_month_urchins <- arrange(per_month_urchins, YEAR_MO) 
+```
+
+Creating rows that have no data for a date NA so the time series has an entry for each month and making one column per date.
+
+```{r}
+urchins_complete <- per_month_urchins |> tidyr::complete(YEAR_MO=seq(min(YEAR_MO), max (YEAR_MO), by = "1 month"))
+```
+
+#### Preparing Kelp Data For Analysis
+
+Getting all of the kelp species from the original data set and filtering for Chromista since there are some species of fish that contain the world "kelp" and were included by the grepl() function.
+
+```{r}
+kelp <- KelpForest[grepl(
+  "Kelp", KelpForest$COMMON_NAME, 
+  ignore.case = TRUE),]
+kelp <- kelp |> filter(TAXON_KINGDOM == "Chromista")
+
+```
+
+Modifying the data set to be grouped by month with total urchin biomass for each month.
+
+```{r}
+kelp <- kelp |> unite("YEAR_MO", c("YEAR", "MONTH"), sep = "-", remove = F) #creates new column of just year and month
+per_month_kelp <- kelp |> group_by(YEAR_MO) |> summarise(
+  DRY_GM2 = sum(DRY_GM2, na.rm = T)#gets kelp biomass per year/month for data
+)
+per_month_kelp$YEAR_MO <- ym(per_month_kelp$YEAR_MO) #makes YEAR_MO a date
+per_month_kelp <- arrange(per_month_kelp, YEAR_MO) #arranges in date order
+```
+
+Creating rows that have no data for a date NA so the time series has an entry for each month and making one column per date.
+
+```{r}
+kelp_complete <- per_month_kelp |> tidyr::complete(YEAR_MO=seq(min(YEAR_MO), max (YEAR_MO), by = "1 month"))
+```
+
+#### Time Series Analysis 
+
+Kelp time series
+
+```{r}
+kelp_drymass <- ts(kelp_complete$DRY_GM2, frequency = 12, start = c(2008, 1))
+```
+
+Urchin time series
+
+```{r}
+urchins_drymass <- ts(urchins_complete$DRY_GM2, frequency = 12, start = c(2008, 1))
+```
+
+Calculating moving averages using a period of three months.
+
+```{r}
+kelp_drymass <- rollmean(kelp_drymass, k=3, fill = NA)
+```
+
+```{r}
+urchins_drymass <- rollmean(urchins_drymass, k=3, fill = NA)
+```
+
+#### Plotting Time Series Results
+
+First the time series data must be put into a dataframe so it can be plotted.
+
+Kelp
+
+```{r}
+kelp_complete$drymass <- as.numeric(kelp_drymass)
+```
+
+Urchins
+
+```{r}
+urchins_complete$drymass <- as.numeric(urchins_drymass)
+```
+
+Kelp Plot
+
+```{r}
+ggplot(kelp_complete, aes(x =YEAR_MO))+
+  geom_line(aes(y = DRY_GM2), color = "blue", linewidth = 1) + #original time series
+  geom_line(aes(y = drymass), color = "red", linewidth = 1.2) + #moving average
+  labs(title = "KU: k = 1 month",x = "Year", y = "Drymass")+
+  scale_x_date(limits = c(as.Date("2008-01-01"), as.Date("2013-12-01")), date_labels = "%Y")+ # I used this function to change the scale to make the graph easier to read since there were no complete values for drymass beyond 2012. 
+  theme_bw()
+```
+
+Urchins Plot
+
+```{r}
+ggplot(urchins_complete, aes(x =YEAR_MO))+
+  geom_line(aes(y = DRY_GM2), color = "blue", linewidth = 1) + #original time series
+  geom_line(aes(y = drymass), color = "red", linewidth = 1.2) + #moving average
+  labs(title = "KU: k = 3 month",x = "Year", y = "Drymass")+
+  scale_x_date(limits = c(as.Date("2008-01-01"), as.Date("2013-12-01")), date_labels = "%Y")+
+  theme_bw()
+```
+
+Since the goal of doing this time series analysis for urchins and kelp was to compare the two time series I'm going to overlay them on one graph. In order to better see the trends only the rolling average is graphed and not the original time series.
+
+```{r}
+ggplot() + # using a plus after the ggplot() function allows for multiple geom functions with different data to be put on one graph. 
+  
+  geom_line(data = urchins_complete, aes(x = YEAR_MO, y = drymass), color = "purple", linewidth = 1.2) +
+  
+  geom_line(data = kelp_complete, aes(x = YEAR_MO, y = drymass), color = "green", linewidth = 1.2) +
+  # Since the labeling and scale functions are applied the same to both they can go at the end to be applied to both. 
+  labs(title = "KU: k = 3 month", x = "Year", y = "Drymass") +
+  scale_x_date(limits = c(as.Date("2008-01-01"), as.Date("2013-12-01")), date_labels = "%Y") +
+  theme_bw()
+```
+
+#### Results
+
+The results of the time series analysis are hard to interpret since there is not a test statistic that correlates the kelp and urchin time series without further analysis. The time series analyses are broken up due to the rolling mean being calculated over a 3 month period (k=3). Thus we can't conclusively accept or reject our null hypothesis.
+
+By looking at the final time series graph there is a small trend that could be significant. From 2011 to 2012 there is a marginal rise in kelp dry mass ignoring seasonal variability. During the same time period there appears to be a visual decline in urchin dry mass. If this were a significant trend it biologically makes sense because urchins are one of the largest consumers of kelp in the ecosystem (Carr et. al, 2024). So as their dry mass decreases, indicating a lower population, kelp would be predated on at a lower rate Carr et. al, 2024). Ultimately further analysis is needed to say conclusively if there is a significant relationship between the changes in dry mass over time of kelp and sea urchins in this survey.
+
+## Ordination Analysis
+
+### Hypothesis
+
+There is not a set hypothesis for this analysis due to it being an exploratory analysis of the data. I did not have data on the habitat composition and the habitat preferences of the over 200 species surveyed. However I will propose a null hypothesis despite there not being any true ecological knowledge that would support or counter it.
+
+Null Hypothesis:
+
+There will be no significant difference in ecosystem composition, as seen through ordination, among the five sampling sites.
+
+### Analysis
+
+#### Loading Packages
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(vegan)
+library(ggvegan)
+library(ggpubr)
+library(ggrepel)
+library(here)
+```
+
+#### Importing Data
+
+Cleaned data set ready for analysis.
+
+```{r}
+
+KelpForest <- read.csv(here("Outputs", "KelpForestFixed.csv"))
+```
+
+#### Preparing Data for Ordination Analysis
+
+Making a smaller kelp data frame that only has the columns that we will need for ordination.
+
+```{r}
+small_kelp <- KelpForest %>% dplyr::select(YEAR:TRANSECT, DENSITY, DRY_GM2, SCIENTIFIC_NAME)
+```
+
+Grouping dry mass by Site since I want to look and see if there is a difference between the sites using ordination
+
+```{r}
+kelp_summary <- small_kelp %>% group_by(SITE, SCIENTIFIC_NAME) %>% summarise(
+  total_dry_mass = sum(DRY_GM2)
+) 
+sum(is.na(kelp_summary))
+```
+
+Removing the 6 NA values because the ordination can't run when there are NA values. I do not expect the removal of 6 species out of 215 to have a large impact on the ordination results so removing them is the best course of action.
+
+```{r}
+kelp_summary_complete <- kelp_summary[complete.cases(kelp_summary),]
+sum(is.na(kelp_summary_complete)) #checking that all NA values are removed
+```
+
+Putting the data in long format so it can be read by the vegan package used for ordination.
+
+```{r}
+kelp_wide <- kelp_summary_complete |> 
+  pivot_wider(
+    names_from = SCIENTIFIC_NAME, values_from = total_dry_mass
+  )
+sum(is.na(kelp_wide)) #checking to make sure there are no NA values still
+```
+
+There is an NA value populating when making the data into wide format so it must be removed so the ordination will work. Again the removal of one species will not have a meaningful impact on the ordination results since there are 213 other species.
+
+```{r}
+kelp_wide <- kelp_wide |> dplyr::select(-`Macrocystis pyrifera`)
+sum(is.na(kelp_wide))
+```
+
+There are now zero NA values in the kelp_wide data frame so it is ready to be used in an ordination.
+
+#### Ordination Analysis
+
+```{r}
+KelpOrdination <- metaMDS(kelp_wide[2:213], distance = "bray", k = 2)
+```
+
+#### Interpreting the Results
+
+```{r}
+KelpOrdination$stress
+```
+
+The threshold for acceptable stress values is a value under 0.2. The observed stress level of 0 is very good since this is the lowest possible stress value, as the scale for stress levels ranges from 0 to 1.
+
+Plotting the stress level
+
+```{r}
+stressplot(KelpOrdination)
+```
+
+The stress plot helps us to evaluate if the ordination is properly representing the data. In this stressplot all of the points fall directly upon the line indicating along with our stress value of 0 that the ordination is a good representation of the data.
+
+#### Plotting the Results
+
+Making the kelp_Ordination readable for the ggplot2 function by changing KelpOrdination into a data frame.
+
+```{r}
+kelp_plot <- fortify(KelpOrdination) 
+View(kelp_plot)
+```
+
+Plot of the ordination results with the five sites shown as red circles and the 213 species shown as black crosses. The labels are not active as they make the graph unreadable, but the code for them is present if anyone want to see them.
+
+```{r}
+ggplot(kelp_plot, aes(NMDS1, NMDS2, group = score))+
+  #geom_text(aes(label = label, color = score))+
+  #scale_color_manual(values = c(sites = "brown", species = "green"))+
+  geom_point(aes(color = score, shape = score, size = ifelse(score == "sites", 0.7,0.6)))+
+  scale_color_manual(values = c(sites = "red", species = "black"))+
+  theme_bw()
+```
+
+Reworking the kelp_plot data frame so the five sites are represented by their names.
+
+```{r}
+kelp_plot2 <- kelp_plot
+site_names <- c("AQUE", "CARP", "IVEE", "MOHK", "NAPL")
+kelp_plot2$label[1:5] <- site_names
+```
+
+Plotting this along with arrows showing which direction each species is pushing the ecological diversity from the center. The center theoretically represents all five sites having the exact same ecological composition.
+
+```{r}
+ggplot()+
+   geom_point(data = subset(kelp_plot2, score =="sites"), 
+              aes(label = label, x = NMDS1, y = NMDS2),
+              color = "red",
+              alpha = 0.5) +
+   geom_segment(data=subset(kelp_plot2, score == "species"),
+                 mapping = aes(x = 0, y = 0, xend = NMDS1, yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0.2)+
+   #Removed species names from the plot to make it readable
+ geom_text(data = subset(kelp_plot2, score == "sites"),
+             mapping = aes(label = label, x = NMDS1*1.1, y = NMDS2), size = 10/.pt, color = "blue")+ #plots
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", linewidth = 0.8, color = "gray")+
+   geom_vline(aes(xintercept = 0), linetype = "dashed", linewidth = 0.8, color = "gray")+
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black")
+   )
+```
+
+#### Results
+
+There is a significant difference between the five study sites (stress = 0). Further analysis could be done to determine if there is a significant difference between each site. While the analysis rejected the null hypothesis there is not a clear biological reason for this difference. More information on the habitat makeup of the five sites along with information on the habitat preferences of the 213 species surveyed would enable an in-depth explanation of the observed differences.
+
+## Challenges
+
+Throughout this process I think I learned a lot about the customization of graphs. Due to my large data set the points that showed the sites during ordination were lost among the points for each species. Using the ifelse() function was not new but applying it to this graph was a challenge to figure out. Additionally overlaying the results of the kelp and urchin time series analyses was a new challenge. Figuring out the different syntax for telling the geom() function what data to use and how to format them within the ggplot() function took a while.
+
+In addition to building upon my graphing skills in RStudio this project posed the challenge of doing two forms of analysis that I hadn't done before. While neither was overly complicated to perform I had a lot of challenges getting the data ready. First loading some of the packages took some confusing workarounds to download them using devtools in addition to having to download XQuartz. Lastly, getting the data grouped properly and in the right format so the analyses would run properly took longer than expected with a lot of issues popping up.

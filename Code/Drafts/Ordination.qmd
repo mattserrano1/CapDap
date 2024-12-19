@@ -1,0 +1,181 @@
+---
+title: "Ordination"
+format: html
+editor: visual
+---
+
+# Set up
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(vegan)
+library(ggvegan)
+library(ggpubr)
+library(ggrepel)
+library(here)
+```
+
+#Pulling in Data
+
+```{r}
+KelpForest <- read.csv(here("Outputs", "KelpForestFixed.csv"))
+```
+
+# Dataframe preperation
+
+Making a smaller kelp dataframe that only has the columns that we will need for ordination. 
+
+```{r}
+small_kelp <- KelpForest %>% dplyr::select(YEAR:TRANSECT, DENSITY, DRY_GM2, SCIENTIFIC_NAME)
+```
+
+Grouping dry mass by Site since I want to look and see if there is a difference between the sites using ordination
+
+```{r}
+kelp_summary <- small_kelp %>% group_by(SITE, SCIENTIFIC_NAME) %>% summarise(
+  total_dry_mass = sum(DRY_GM2)
+) 
+sum(is.na(kelp_summary))
+```
+
+Removing the 6 NA values because the ordination can't run when there are NA values. I do not expect the removal of 6 species out of 215 to have a large impact on the ordination results so removing them is the best course of action. 
+
+```{r}
+kelp_summary_complete <- kelp_summary[complete.cases(kelp_summary),]
+sum(is.na(kelp_summary_complete)) #checking that all NA values are removed
+```
+
+kelp_wide_clean <- kelp_wide[complete.cases(kelp_wide[2:215]), ]
+
+Putting the data in long format so it can be read by the vegan package
+
+```{r}
+kelp_wide <- kelp_summary_complete |> 
+  pivot_wider(
+    names_from = SCIENTIFIC_NAME, values_from = total_dry_mass
+  )
+sum(is.na(kelp_wide)) #checking to make sure there are no NA values still
+```
+There is an NA value populating when making the data into wide format so it must be removed so the ordination will work. Again the removal of one species will not have a meaningful impact on the ordination results since there are 213 other species. 
+
+```{r}
+kelp_wide <- kelp_wide |> select(-`Macrocystis pyrifera`)
+sum(is.na(kelp_wide))
+```
+There are now zero NA values in the kelp_wide data frame so it is ready to be used in an ordination. 
+
+# Performing an ordination
+
+```{r}
+KelpOrdination <- metaMDS(kelp_wide[2:213], distance = "bray", k = 2)
+```
+
+# Interpreting the Results 
+
+Looking at the stress of the model
+
+```{r}
+KelpOrdination$stress
+```
+
+The threshold for acceptable stress values is a value under 0.2A stress level of 0 is very good since this is the lowest possible stress value, as the scale for stress levels ranges from 0 to 1. 
+
+Plotting the stress
+
+```{r}
+stressplot(KelpOrdination)
+```
+
+The stress plot helps us to evaluate if the ordination is properly representing the data. If the points are along the line of fit then the ordination is a good fit. In this stressplot all of the points fall directly upon the line indicating along with out stress value of 0 that the ordination is a good representation of the data. 
+
+
+# Plotting The Results
+
+```{r}
+ordiplot(KelpOrdination, choices = c(1,2))
+  points(KelpOrdination$points[1:5,], col = "blue", pch = 20, cex = 1) #makes it easier to see the 5 sites and how they differ from each other. 
+# did not include the names of the species as it makes the graph impossible to read. 
+  ?ordiplot()
+```
+
+# Nicer Plots
+
+Must make the kelp_Ordination readable for the ggplot2 function
+
+```{r}
+kelp_plot <- fortify(KelpOrdination) 
+View(kelp_plot)
+```
+
+
+
+```{r}
+ggplot(kelp_plot, aes(NMDS1, NMDS2, group = score))+
+  #geom_text(aes(label = label, color = score))+
+  #scale_color_manual(values = c(sites = "brown", species = "green"))+
+  geom_point(aes(color = score, shape = score, size = ifelse(score == "sites", 0.7,0.6)))+
+  scale_color_manual(values = c(sites = "red", species = "black"))+
+  theme_bw()
+```
+
+
+```{r}
+ggplot()+
+   geom_point(data = subset(kelp_plot, score =="sites"), 
+              aes(label = label, x = NMDS1, y = NMDS2),
+              color = "red",
+              alpha = 0.5) +
+   geom_segment(data=subset(kelp_plot, score == "species"),
+                 mapping = aes(x = 0, y = 0, xend = NMDS1, yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0.2)+
+   #Removed species names from the plot to make it readable
+ geom_text(data = subset(kelp_plot, score == "sites"),
+             mapping = aes(label = label, x = NMDS1*1.1, y = NMDS2), size = 10/.pt, color = "red")+ #plots
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", linewidth = 0.8, color = "gray")+
+   geom_vline(aes(xintercept = 0), linetype = "dashed", linewidth = 0.8, color = "gray")+
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black")
+   )
+   
+```
+
+```{r}
+kelp_plot2 <- kelp_plot
+site_names <- c("AQUE", "CARP", "IVEE", "MOHK", "NAPL")
+kelp_plot2$label[1:5] <- site_names
+```
+
+```{r}
+ggplot()+
+   geom_point(data = subset(kelp_plot2, score =="sites"), 
+              aes(label = label, x = NMDS1, y = NMDS2),
+              color = "red",
+              alpha = 0.5) +
+   geom_segment(data=subset(kelp_plot2, score == "species"),
+                 mapping = aes(x = 0, y = 0, xend = NMDS1, yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0.2)+
+   #Removed species names from the plot to make it readable
+ geom_text(data = subset(kelp_plot2, score == "sites"),
+             mapping = aes(label = label, x = NMDS1*1.1, y = NMDS2), size = 10/.pt, color = "blue")+ #plots
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", linewidth = 0.8, color = "gray")+
+   geom_vline(aes(xintercept = 0), linetype = "dashed", linewidth = 0.8, color = "gray")+
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black")
+   )
+```
+
+
+
