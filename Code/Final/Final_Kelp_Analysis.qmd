@@ -16,7 +16,7 @@ Two different analyses were performed on the data; a time series analysis and an
 
 ## Kelp & Sea Urchin Time Series Analysis
 
-### Hypothesizes 
+### Hypothesizes
 
 Null Hypothesis:
 
@@ -112,7 +112,7 @@ Creating rows that have no data for a date NA so the time series has an entry fo
 kelp_complete <- per_month_kelp |> tidyr::complete(YEAR_MO=seq(min(YEAR_MO), max (YEAR_MO), by = "1 month"))
 ```
 
-#### Time Series Analysis 
+#### Time Series Analysis
 
 Kelp time series
 
